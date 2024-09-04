@@ -170,8 +170,8 @@ players <- players |>
     name = sub("\\s", "=", player_name),
     # names = str_split(x, pattern = '='),
     url = case_when(
-      player_id %in% kept_players | player_id %in% dropped_players | player_id %in% round1 ~ glue::glue("../img/{player_id}_bw.png"),
-      TRUE ~ glue::glue("../img/{player_id}.png")
+      player_id %in% kept_players | player_id %in% dropped_players | player_id %in% round1 ~ glue::glue("img/{player_id}_bw.png"),
+      TRUE ~ glue::glue("img/{player_id}.png")
     ),
     url = as.character(url)
   ) |>

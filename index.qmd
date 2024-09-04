@@ -1,4 +1,12 @@
 ---
-title: "ff-website"
+title: "Hot Boyz"
 ---
+
+```{r}
+#| echo: false
+
+df <- gsheet::gsheet2tbl('https://docs.google.com/spreadsheets/d/1yNmLo68xxzI4w-bfMASAgk7-TrxaTKHI3If2hL2JOPw/edit?usp=sharing')
+
+df[df['Year'] < 2024, ] |> reactable::reactable()
+```
 

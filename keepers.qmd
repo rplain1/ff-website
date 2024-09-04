@@ -1,0 +1,302 @@
+
+---
+title: "Keepers"
+format:
+  html:
+    grid:
+      body-width: 2000px
+      sidebar-width: 0px
+      margin-width:	25px
+---
+
+```{css}
+/*| echo: false */
+.border-left {
+  border-left: 2px solid #000;
+}
+.player-button {
+  display: flex;
+  margin: 0px 0px 0px 0px;
+  height: 52px;
+  min-width: 130px;
+  width: 130px;
+  max-width: 130px;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  padding-top: 0px;
+  border-radius: 10% / 90%;
+  color: #000;
+  font-size: 0.8125rem;
+  letter-spacing: -1px;
+  overflow: hidden;
+  position: relative;
+  letter-spacing: 1px;
+}
+
+```
+
+
+```{r}
+#| echo: false
+#| warning: false
+library(tidyverse)
+library(reactable)
+library(htmltools)
+message(here::here())
+SEASON <- 2024
+
+my_leagues <- ffscrapr::sleeper_userleagues("rplain", SEASON)
+
+league_id <- my_leagues %>%
+  filter(league_name == "The Hot Boyz") %>%
+  pull(league_id)
+
+my_league <- ffscrapr::ff_connect(
+  platform = "sleeper",
+  season = SEASON,
+  league_id = league_id
+)
+
+
+transactions <- ffscrapr::ff_transactions(my_league)
+draft_picks <- ffscrapr::ff_draft(my_league)
+players <- ffscrapr::sleeper_players()
+franchises <- ffscrapr::ff_franchises(my_league)
+draft_board <- draft_picks %>%
+  select(round, pick, franchise_id, player_id, pos, team) %>%
+  pivot_wider(
+    id_cols = round,
+    names_from = franchise_id,
+    values_from = player_id
+  ) %>%
+  mutate(round = round - 1)
+
+users <- draft_picks |>
+  filter(round == 1) |>
+  left_join(ffscrapr::ff_franchises(my_league)) |>
+  pull(user_name)
+
+
+team_names <- colnames(draft_board)
+colnames(draft_board) <- c("Round", 1:10)
+
+kept <- c(
+  "De'Von Achane",
+  "Raheem Mostert",
+  "Brandon Aiyuk",
+  "Michael Pittman",
+  "Drake London",
+  "CeeDee Lamb",
+  "Mike Evans",
+  "Sam LaPorta"
+)
+
+
+team_names <- c(
+  "",
+  "Mike",
+  "Tony",
+  "Mitchell",
+  "Blood",
+  "Wayne",
+  "Jordan",
+  "Jacob",
+  "John",
+  "Cody",
+  "Ryan"
+)
+
+
+round1 <- draft_board |>
+  filter(Round == min(Round)) |>
+  select(-Round) |>
+  pivot_longer(everything()) |>
+  pull(value)
+
+
+kept_players <- players |>
+  filter(player_name %in% kept) |>
+  pull(player_id)
+
+transactions <- transactions %>%
+  mutate(week = lubridate::week(timestamp) - 36) %>%
+  dplyr::filter(week >= 0)
+
+dropped_players <- transactions %>%
+  filter(type_desc == "dropped") %>%
+  filter(type != "waiver_failed") %>%
+  mutate(
+    bye_weeks = case_when(
+      team %in% c("TEN", "LAC", "PHI", "DET") ~ 5,
+      team %in% c("MIA", "KC", "MIN", "LAR") ~ 6,
+      team %in% c("DAL", "CHI") ~ 7,
+      team %in% c("PIT", "SAN") ~ 9,
+      team %in% c("CLE", "LV", "SEA", "GB") ~ 10,
+      team %in% c("NYG", "ARI", "TB", "CAR") ~ 11,
+      team %in% c("BUF", "NYJ", "CIN", "ATL", "NO", "JAX") ~ 13,
+      team %in% c("IND", "NE", "DEN", "WAS", "BAL", "HOU") ~ 14
+    )
+  ) %>%
+  group_by(player_name, player_id) %>%
+  arrange(timestamp, player_id) %>%
+  mutate(rn = row_number()) %>%
+  filter(rn == 1) %>%
+  filter(week < bye_weeks - 1) %>%
+  pull(player_id) %>%
+  unique()
+
+trades <- transactions %>%
+  filter(type == "trade") 
+
+if(nrow(trades) > 0 ) {
+  trades <- trades  |> 
+    group_by(player_name) %>%
+  arrange(timestamp) %>%
+  mutate(rn = row_number()) %>%
+  filter(rn == max(rn)) %>%
+  select(franchise_id, franchise_name, player_name, trade_partner, player_id) %>%
+  mutate(trade_partner = as.numeric(trade_partner)) %>%
+  left_join(
+    franchises,
+    by = c("trade_partner" = "franchise_id"), suffix = c("", "_trade")
+  )
+}
+
+
+#trades$franchise_name_trade <- c("Mike", "Mike", "Tony")
+
+
+players <- players |>
+  mutate(
+    name = sub("\\s", "=", player_name),
+    # names = str_split(x, pattern = '='),
+    url = case_when(
+      player_id %in% kept_players | player_id %in% dropped_players | player_id %in% round1 ~ glue::glue("../img/{player_id}_bw.png"),
+      TRUE ~ glue::glue("../img/{player_id}.png")
+    ),
+    url = as.character(url)
+  ) |>
+  separate_wider_delim(name, "=", names = c("fname", "lname")) |>
+  mutate(
+    fname = ifelse(pos == "DEF", "", fname),
+    lname = ifelse(str_length(lname) > 7, paste0(substr(lname, 1, 8), "..."), lname)
+  )
+
+
+qbs <- players |>
+  filter(pos == "QB") |>
+  pull(player_id)
+wrs <- players |>
+  filter(pos == "WR") |>
+  pull(player_id)
+rbs <- players |>
+  filter(pos == "RB") |>
+  pull(player_id)
+tes <- players |>
+  filter(pos == "TE") |>
+  pull(player_id)
+def <- players |>
+  filter(pos == "DEF") |>
+  pull(player_id)
+
+
+
+
+player_columns <- function(class = NULL, name = "", ...) {
+  colDef(
+    name = name,
+    minWidth = 100,
+    class = paste("cell number", class),
+    cell = function(value) {
+      image <- img(src = players[players["player_id"] == value, ]$url)
+      traded <- ifelse(value %in% trades$player_id, trades[trades$player_id == value, ]$franchise_name_trade, "")
+      fname <- ifelse(
+        value %in% def,
+        "",
+        players[players["player_id"] == value, ]$fname
+      )
+
+      lname <- ifelse(value %in% def,
+        players[players["player_id"] == value, ]$player_id,
+        players[players["player_id"] == value, ]$lname
+      )
+
+      name <- ifelse(value %in% def, lname, paste0(substr(fname, 1, 1), ". ", lname))
+      htmltools::tags$link(
+        href = "https://fonts.googleapis.com/css?family=Poppins",
+        rel = "stylesheet"
+      )
+      tagList(
+        div(
+          div(name, style = "display: inline; position: absolute; margin-top: -8px; padding-top: 0px; font-size: 16px"),
+          div(traded, style = "position: absolute; margin-top: 20px;  left: 5px; font-size: 14px; color: #F0f0f0; z-index: 4; background-color: slategrey; border-radius: 40% / 95%; opacity: 0.8; background-width: 50px;")
+        ),
+        div(
+          image,
+          style = "position: absolute; top: 15px; left: 60px;"
+        )
+      )
+    },
+    style = function(value) {
+      textColor <- "black"
+      if (value %in% dropped_players | value %in% kept_players | value %in% round1) {
+        background <- "lightgrey"
+        textColor <- "grey"
+      } else if (value %in% qbs) {
+        background <- "rgba(239, 116, 161, 0.8)"
+      } else if (value %in% rbs) {
+        background <- "rgba(143, 242, 202, 0.8)"
+      } else if (value %in% wrs) {
+        background <- "rgba(86, 201, 248, 0.8)"
+      } else if (value %in% tes) {
+        background <- "rgba(254, 174, 88, 0.8)"
+      } else if (value %in% def) {
+        background <- "rgba(191, 117, 93, 0.8)"
+      } else {
+        background <- "lightgrey"
+        textColor <- "grey"
+      }
+      return(list(background = background, color = textColor))
+    },
+    ...
+  )
+}
+
+
+g <- reactable(
+  draft_board,
+  defaultPageSize = 16,
+  style = list(fontFamily = "Poppins"),
+  columns = list(
+    Round = colDef(
+      style = function(value) {
+        list(borderRight = "2px solid #000000")
+      }
+    ),
+    `1` = player_columns(class = "player-button", name = team_names[2]),
+    `2` = player_columns(class = "player-button", name = team_names[3]),
+    `3` = player_columns(class = "player-button", name = team_names[4]),
+    `4` = player_columns(class = "player-button", name = team_names[5]),
+    `5` = player_columns(class = "player-button", name = team_names[6]),
+    `6` = player_columns(class = "player-button", name = team_names[7]),
+    `7` = player_columns(class = "player-button", name = team_names[8]),
+    `8` = player_columns(class = "player-button", name = team_names[9]),
+    `9` = player_columns(class = "player-button", name = team_names[10]),
+    `10` = player_columns(class = "player-button", name = team_names[11])
+  )
+)
+
+```
+
+
+::: {.grid}
+
+::: {.g-col-12}
+```{r}
+#| echo: false
+#|
+g
+
+```
+:::
+
+:::

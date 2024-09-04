@@ -8,6 +8,7 @@ website:
       - href: index.qmd
         text: Home
       - about.qmd
+      - keepers.qmd
 
 format:
   html:
@@ -15,5 +16,5 @@ format:
     css: styles.css
     toc: true
 
-editor: visual
+editor: source
 

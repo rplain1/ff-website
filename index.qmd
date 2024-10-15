@@ -9,4 +9,3 @@ df <- gsheet::gsheet2tbl('https://docs.google.com/spreadsheets/d/1yNmLo68xxzI4w-
 
 df[df['Year'] < 2024, ] |> reactable::reactable()
 ```
-

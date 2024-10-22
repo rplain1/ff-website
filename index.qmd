@@ -164,15 +164,16 @@ reactable(
         list(background = color)
       }
     ),
-    bye = loser_column(
-      show = FALSE,
-      name = "1st Round Bye", class = "border-left", borderRight = "2px solid #000000"
+    bye = playoff_column(
+      # show = FALSE,
+      name = "1st Round Bye", class = "border-left", borderLeft = "2px solid #000000"
     ),
     # loser_bracket = colDef(show = FALSE),
     # loser_bracket = loser_column(name = 'Losers Bracket', class = 'border-left'),
     # last_place = colDef(show = FALSE),
-    # bye = loser_column(name = 'Last Place', class = 'border-left', borderRight = '2px solid #000000'),
-    playoffs = playoff_column(name = "Playoff", class = "border-left", borderLeft = "2px solid #000000"),
+    # bye = loser_column(name = 'Bye', class = 'border-left', borderRight = '2px solid #000000'),
+    # playoffs = playoff_column(name = "Playoff", class = "border-left", borderLeft = '1px solid #000000'),
+    playoffs = knockout_column(name = "Playoff", class = "border-left"),
     semi_finals = knockout_column(name = "Semi-Finals", class = "border-left"),
     finals = knockout_column(name = "Finals", class = "border-left"),
     winner = knockout_column(name = "Winner", class = "border-left")

@@ -145,10 +145,10 @@ dropped_players <- transactions %>%
   unique()
 
 trades <- transactions %>%
-  filter(type == "trade") 
+  filter(type == "trade")
 
 if(nrow(trades) > 0 ) {
-  trades <- trades  |> 
+  trades <- trades  |>
     group_by(player_name) %>%
   arrange(timestamp) %>%
   mutate(rn = row_number()) %>%
